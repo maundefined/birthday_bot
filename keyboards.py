@@ -52,7 +52,7 @@ def get_delay_keyboard(birthday_user_id: int = None):
         builder.add(InlineKeyboardButton(text="⏰ Через неделю", callback_data="remind_7"))
         builder.add(InlineKeyboardButton(text="🚫 Не напоминать", callback_data="remind_never"))
     
-    builder.adjust(2)
+    builder.adjust(1)
     return builder.as_markup()
 
 def get_users_list_keyboard(users, action_prefix="select_"):
@@ -70,6 +70,7 @@ def get_admin_keyboard():
     builder.add(InlineKeyboardButton(text="👥 Список пользователей", callback_data="admin_list_users"))
     builder.add(InlineKeyboardButton(text="🎂 Все дни рождения", callback_data="admin_all_birthdays"))
     builder.add(InlineKeyboardButton(text="📬 История уведомлений", callback_data="admin_check_notifications"))
+    builder.add(InlineKeyboardButton(text="📢 Сделать рассылку", callback_data="admin_broadcast"))  # новая кнопка
     builder.add(InlineKeyboardButton(text="👤 Просмотр пользователя", callback_data="admin_view_user"))
     builder.add(InlineKeyboardButton(text="✏️ Редактировать пользователя", callback_data="admin_edit_user"))
     builder.add(InlineKeyboardButton(text="❌ Удалить пользователя", callback_data="admin_delete_user"))
@@ -93,3 +94,4 @@ def get_notification_options_keyboard():
     builder.add(InlineKeyboardButton(text="📢 Уведомить с адресами", callback_data="notify_with_addresses"))
 
     return builder.as_markup()
+
