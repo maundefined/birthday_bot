@@ -25,3 +25,4 @@ class BarcodeStates(StatesGroup):
 class AdminStates(StatesGroup):
     editing_user = State()
     deleting_user = State()
+    broadcast = State()
