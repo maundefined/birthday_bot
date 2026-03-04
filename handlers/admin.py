@@ -491,4 +491,69 @@ async def process_user_delete(message: Message, state: FSMContext):
         )
         return
     
+
     await state.clear()
+
+@router.message(F.text == "/test_reminder")
+async def test_reminder_command(message: Message):
+    """Тестовая команда для проверки напоминаний (только для админов)"""
+    try:
+        from database import Database
+        db = Database()
+        
+        # Проверяем, есть ли напоминания для отправки сегодня
+        due_delays = db.get_due_delays()
+        
+        if not due_delays:
+            await message.answer("📭 Сегодня нет напоминаний для отправки")
+            return
+        
+        response = "⏰ <b>Напоминания на сегодня:</b>\n\n"
+        
+        for delay in due_delays:
+            response += (
+                f"👤 Пользователь: {delay['user_name']}\n"
+                f"🎂 Именинник: {delay['birthday_user_name']}\n"
+                f"📅 Дата напоминания: {delay['delay_until']}\n"
+                f"⏱ Через дней: {delay['delay_days']}\n\n"
+            )
+        
+        await message.answer(response)
+        
+    except Exception as e:
+        await message.answer(f"❌ Ошибка: {str(e)}")
+        print(f"Ошибка в test_reminder_command: {e}")
+
+
+@router.message(F.text == "/set_test_reminder")
+async def set_test_reminder_command(message: Message):
+    """Установить тестовое напоминание на завтра (для отладки)"""
+    try:
+        from database import Database
+        db = Database()
+        
+        # Берем первого пользователя как именинника
+        all_users = db.get_all_users()
+        if len(all_users) < 2:
+            await message.answer("Нужно хотя бы 2 пользователя для теста")
+            return
+        
+        # Берем второго пользователя как именинника
+        birthday_user = all_users[1]
+        
+        # Устанавливаем напоминание на завтра
+        db.set_delay(
+            user_id=message.from_user.id,
+            birthday_user_id=birthday_user['user_id'],
+            delay_days=1,  # На завтра
+            year=datetime.now().year
+        )
+        
+        await message.answer(
+            f"✅ Тестовое напоминание установлено!\n"
+            f"Завтра я напомню вам о дне рождения {birthday_user['full_name']}"
+        )
+        
+    except Exception as e:
+        await message.answer(f"❌ Ошибка: {str(e)}")
+        print(f"Ошибка в set_test_reminder_command: {e}")
