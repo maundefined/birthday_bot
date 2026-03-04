@@ -38,19 +38,20 @@ def get_addresses_keyboard():
     return builder.as_markup()
 
 def get_delay_keyboard(birthday_user_id: int = None):
-    """Клавиатура для отложенных напоминаний. birthday_user_id опционален для обратной совместимости"""
+    """Клавиатура для выбора задержки напоминания"""
     builder = InlineKeyboardBuilder()
+    
     if birthday_user_id:
-        builder.add(InlineKeyboardButton(text="⏰ Напомнить через день", callback_data=f"remind_1_{birthday_user_id}"))
-        builder.add(InlineKeyboardButton(text="⏰ Напомнить через 3 дня", callback_data=f"remind_3_{birthday_user_id}"))
-        builder.add(InlineKeyboardButton(text="⏰ Напомнить через неделю", callback_data=f"remind_7_{birthday_user_id}"))
+        builder.add(InlineKeyboardButton(text="⏰ Через 1 день", callback_data=f"remind_1_{birthday_user_id}"))
+        builder.add(InlineKeyboardButton(text="⏰ Через 3 дня", callback_data=f"remind_3_{birthday_user_id}"))
+        builder.add(InlineKeyboardButton(text="⏰ Через неделю", callback_data=f"remind_7_{birthday_user_id}"))
         builder.add(InlineKeyboardButton(text="🚫 Не напоминать", callback_data=f"remind_never_{birthday_user_id}"))
     else:
-        # Старый формат для обратной совместимости
-        builder.add(InlineKeyboardButton(text="⏰ Напомнить через день", callback_data="remind_1"))
-        builder.add(InlineKeyboardButton(text="⏰ Напомнить через 3 дня", callback_data="remind_3"))
-        builder.add(InlineKeyboardButton(text="⏰ Напомнить через неделю", callback_data="remind_7"))
+        builder.add(InlineKeyboardButton(text="⏰ Через 1 день", callback_data="remind_1"))
+        builder.add(InlineKeyboardButton(text="⏰ Через 3 дня", callback_data="remind_3"))
+        builder.add(InlineKeyboardButton(text="⏰ Через неделю", callback_data="remind_7"))
         builder.add(InlineKeyboardButton(text="🚫 Не напоминать", callback_data="remind_never"))
+    
     builder.adjust(2)
     return builder.as_markup()
 
@@ -90,4 +91,5 @@ def get_notification_options_keyboard():
     """Клавиатура с опциями уведомлений после обновления адресов"""
     builder = InlineKeyboardBuilder()
     builder.add(InlineKeyboardButton(text="📢 Уведомить с адресами", callback_data="notify_with_addresses"))
+
     return builder.as_markup()
