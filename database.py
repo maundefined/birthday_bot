@@ -199,50 +199,45 @@ class Database:
     
     # Методы для работы с отложенными рассылками
     def set_delay(self, user_id: int, birthday_user_id: int, delay_days: int, year: int):
-        """Устанавливает отложенное напоминание о дне рождения"""
+        """Установить отложенное напоминание"""
         delay_until = (datetime.now() + timedelta(days=delay_days)).date()
+        
         with self.get_connection() as conn:
+            # Удаляем старые напоминания для этой пары пользователь  + именинник
             conn.execute("""
-                INSERT OR REPLACE INTO delays (user_id, birthday_user_id, delay_days, delay_until, year)
+                DELETE FROM delays 
+                WHERE user_id = ? AND birthday_user_id = ? AND year = ?
+            """, (user_id, birthday_user_id, year))
+            
+            # Добавляем новое напоминание
+            conn.execute("""
+                INSERT INTO delays (user_id, birthday_user_id, delay_days, delay_until, year)
                 VALUES (?, ?, ?, ?, ?)
             """, (user_id, birthday_user_id, delay_days, delay_until, year))
             conn.commit()
-    
-    def get_delay(self, user_id: int, birthday_user_id: int = None) -> Optional[Dict]:
-        """Получает отложенное напоминание. Если birthday_user_id не указан, возвращает все напоминания для пользователя"""
+
+    def get_due_delays(self):
+        """Получить напоминания, которые должны быть отправлены сегодня"""
+        today = date.today()
+        
         with self.get_connection() as conn:
-            if birthday_user_id:
-                cursor = conn.execute(
-                    "SELECT * FROM delays WHERE user_id = ? AND birthday_user_id = ?", 
-                    (user_id, birthday_user_id)
-                )
-            else:
-                cursor = conn.execute("SELECT * FROM delays WHERE user_id = ?", (user_id,))
-            row = cursor.fetchone()
-            return dict(row) if row else None
-    
-    def get_all_delays(self) -> List[Dict]:
-        """Получает все отложенные напоминания"""
-        with self.get_connection() as conn:
-            cursor = conn.execute("SELECT * FROM delays")
+            cursor = conn.execute("""
+                SELECT d.*, 
+                       b.full_name as birthday_user_name,
+                       u.full_name as user_name,
+                       u.user_id as user_id
+                FROM delays d
+                LEFT JOIN users b ON d.birthday_user_id = b.user_id
+                LEFT JOIN users u ON d.user_id = u.user_id
+                WHERE d.delay_until = ?
+            """, (today,))
+            
             return [dict(row) for row in cursor.fetchall()]
-    
-    def get_delays_by_birthday_user(self, birthday_user_id: int) -> List[Dict]:
-        """Получает все отложенные напоминания для конкретного именинника (оптимизированный запрос)"""
+
+    def delete_delay(self, delay_id: int):
+        """Удалить напоминание"""
         with self.get_connection() as conn:
-            cursor = conn.execute(
-                "SELECT * FROM delays WHERE birthday_user_id = ?",
-                (birthday_user_id,)
-            )
-            return [dict(row) for row in cursor.fetchall()]
-    
-    def delete_delay(self, user_id: int, birthday_user_id: int):
-        """Удаляет отложенное напоминание"""
-        with self.get_connection() as conn:
-            conn.execute(
-                "DELETE FROM delays WHERE user_id = ? AND birthday_user_id = ?",
-                (user_id, birthday_user_id)
-            )
+            conn.execute("DELETE FROM delays WHERE id = ?", (delay_id,))
             conn.commit()
     
     # Методы для работы с уведомлениями
@@ -394,3 +389,4 @@ class Database:
             users = [dict(row) for row in cursor.fetchall()]
             
             return users
+
