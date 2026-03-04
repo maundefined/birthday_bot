@@ -209,32 +209,30 @@ async def send_birthday_notification(birthday_user_id: int, bot, force: bool = F
         return False
 
 async def request_addresses_from_user(user_id: int, bot):
-    """Запрашивает адреса у именинника за 10 дней до дня рождения"""
     try:
-        # Используем модульный экземпляр db вместо создания нового
-        
         user = db.get_user(user_id)
         if not user:
             return
         
-        # Проверяем, не запрашивали ли уже адреса в этом году
         year = datetime.now().year
-        if db.is_notification_sent(user_id, year, "address_request"):
-            print(f"⚠️ Адреса у {user['full_name']} уже запрашивались в этом году")
-            return
-        
-        # Проверяем, есть ли уже адреса
-        addresses = db.get_user_addresses(user_id)
-        has_addresses = any(address for address in addresses.values() if address)
-        
-        if has_addresses:
-            print(f"✅ У {user['full_name']} уже есть адреса")
-            return
-        
         bd_date = datetime.strptime(user['birthday'], '%Y-%m-%d').date()
         next_bd, days_until = calculate_next_birthday(bd_date)
         
-        if days_until == 10:
+        # Планировщик вызывает эту функцию только при days_until == 10,
+        # но на всякий случай оставим проверку
+        if days_until != 10:
+            return
+        
+        # Проверяем, не запрашивали ли уже адреса в этом году
+        if db.is_notification_sent(user_id, year, "address_request"):
+            print(f"⚠️ Запрос адресов у {user['full_name']} уже отправлялся в этом году")
+            return
+        
+        addresses = db.get_user_addresses(user_id)
+        has_addresses = any(address for address in addresses.values() if address)
+        
+        if not has_addresses:
+            # Адресов нет – запрашиваем их
             try:
                 await bot.send_message(
                     user_id,
@@ -243,14 +241,27 @@ async def request_addresses_from_user(user_id: int, bot):
                     f"Можно указать несколько или хотя бы один адрес.\n\n"
                     f"Перейди в '📅 Мой профиль' → нажми '✏️ Изменить адреса'"
                 )
-                
-                # Сохраняем факт запроса адресов
                 db.add_notification(user_id, user_id, "address_request", year)
-                
                 print(f"✅ Запрос адресов отправлен {user['full_name']}")
-                
             except Exception as e:
                 print(f"❌ Не удалось запросить адреса у пользователя {user_id}: {e}")
+        else:
+            # Адреса уже есть – предлагаем уведомить участников, если ещё не отправляли такое напоминание
+            if not db.is_notification_sent(user_id, year, "remind_to_notify"):
+                try:
+                    await bot.send_message(
+                        user_id,
+                        f"🎉 Через 10 дней твой день рождения!\n\n"
+                        f"Твои адреса уже сохранены. Хочешь уведомить участников, чтобы они знали, куда отправлять подарки?",
+                        reply_markup=get_notification_options_keyboard()
+                    )
+                    # Запоминаем, что мы уже отправили это напоминание (чтобы не дублировать)
+                    db.add_notification(user_id, user_id, "remind_to_notify", year)
+                    print(f"✅ Напоминание об уведомлении отправлено {user['full_name']}")
+                except Exception as e:
+                    print(f"❌ Не удалось отправить напоминание об уведомлении {user_id}: {e}")
+            else:
+                print(f"ℹ️ У {user['full_name']} уже есть адреса, и напоминание об уведомлении отправлялось")
                 
     except Exception as e:
         print(f"❌ Ошибка в request_addresses_from_user: {e}")
@@ -686,4 +697,5 @@ async def force_notification(message: Message):
         print(f"❌ Ошибка принудительного уведомления: {e}")
 
         await message.answer("❌ Ошибка при отправке уведомлений")
+
 
