@@ -570,15 +570,8 @@ async def admin_broadcast_start(callback: CallbackQuery, state: FSMContext):
         "Для отмены нажмите кнопку ниже.",
         reply_markup=get_cancel_keyboard()
     )
-    await state.set_state(AdminStates.broadcast)
+    await state.set_state(states.AdminStates.broadcast)  # <-- исправлено
     await callback.answer()
-
-@router.message(AdminStates.broadcast)
-async def admin_broadcast_send(message: Message, state: FSMContext):
-    if not is_admin(message.from_user.id):
-        await message.answer("⛔ Нет доступа")
-        await state.clear()
-        return
 
     # Кнопка отмены
     if message.text == "❌ Отмена":
@@ -616,3 +609,4 @@ async def admin_broadcast_send(message: Message, state: FSMContext):
         reply_markup=get_main_menu()
     )
     await state.clear()
+
