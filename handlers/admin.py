@@ -557,3 +557,62 @@ async def set_test_reminder_command(message: Message):
     except Exception as e:
         await message.answer(f"❌ Ошибка: {str(e)}")
         print(f"Ошибка в set_test_reminder_command: {e}")
+
+@router.callback_query(F.data == "admin_broadcast")
+async def admin_broadcast_start(callback: CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔ Нет доступа")
+        return
+    
+    await callback.message.answer(
+        "📢 Введите сообщение для рассылки всем пользователям.\n"
+        "Это может быть текст, фото, документ – я скопирую его в точности.\n"
+        "Для отмены нажмите кнопку ниже.",
+        reply_markup=get_cancel_keyboard()
+    )
+    await state.set_state(AdminStates.broadcast)
+    await callback.answer()
+
+@router.message(AdminStates.broadcast)
+async def admin_broadcast_send(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        await message.answer("⛔ Нет доступа")
+        await state.clear()
+        return
+
+    # Кнопка отмены
+    if message.text == "❌ Отмена":
+        await message.answer("❌ Рассылка отменена.", reply_markup=get_main_menu())
+        await state.clear()
+        return
+
+    # Получаем всех пользователей
+    users = db.get_all_users()
+    if not users:
+        await message.answer("📭 В базе нет пользователей для рассылки.")
+        await state.clear()
+        return
+
+    # Уведомление о начале
+    status_msg = await message.answer("⏳ Начинаю рассылку...")
+
+    successful = 0
+    failed = 0
+
+    for user in users:
+        try:
+            # Копируем исходное сообщение (текст, фото, документ – всё поддерживается)
+            await message.copy_to(chat_id=user['user_id'])
+            successful += 1
+        except Exception as e:
+            print(f"❌ Ошибка отправки пользователю {user['user_id']}: {e}")
+            failed += 1
+
+    await status_msg.delete()
+    await message.answer(
+        f"✅ Рассылка завершена!\n"
+        f"📨 Успешно отправлено: {successful}\n"
+        f"❌ Не удалось отправить: {failed}",
+        reply_markup=get_main_menu()
+    )
+    await state.clear()
