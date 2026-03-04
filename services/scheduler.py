@@ -33,6 +33,10 @@ class BirthdayScheduler:
         """Проверяет дни рождения и отправляет уведомления"""
         print("🔍 Проверка дней рождения...")
         
+        # Проверяем напоминания
+        await self.check_and_send_reminders()
+        
+        # Остальная логика проверки дней рождения
         users = self.db.get_all_users()
         today = datetime.now().date()
         year = today.year
@@ -56,14 +60,10 @@ class BirthdayScheduler:
                     if days_until == 10:
                         await self.request_addresses(user['user_id'])
                     
-                    # Если сегодня день рождения - сначала проверяем/запрашиваем адреса, затем уведомляем
+                    # Если сегодня день рождения - уведомляем других пользователей
                     if days_until == 0:
-                        # Функция notify_about_birthday теперь сама проверяет адреса и запрашивает их при необходимости
                         await self.notify_about_birthday(user['user_id'])
-                    
-                    # Также проверяем, не пора ли напоминать об отложенных уведомлениях
-                    await self.check_delayed_notifications(user['user_id'], days_until)
-                        
+                            
             except Exception as e:
                 print(f"❌ Ошибка обработки дня рождения {user['full_name']}: {e}")
                 continue
@@ -148,4 +148,55 @@ class BirthdayScheduler:
             await self.bot.send_message(user_id, message, parse_mode="html")
             print(f"✅ Отправлено напоминание пользователю {user_id} о дне рождения {birthday_user['full_name']}")
         except Exception as e:
+
             print(f"❌ Ошибка отправки напоминания {user_id}: {e}")
+
+    async def check_and_send_reminders(self):
+        """Проверить и отправить напоминания, которые должны быть отправлены сегодня"""
+        try:
+            # Получаем все напоминания, которые должны быть отправлены сегодня
+            due_delays = self.db.get_due_delays()
+            
+            if not due_delays:
+                return
+            
+            print(f"📨 Найдено {len(due_delays)} напоминаний для отправки")
+            
+            for delay in due_delays:
+                try:
+                    # Получаем информацию об имениннике
+                    birthday_user = self.db.get_user(delay['birthday_user_id'])
+                    if not birthday_user:
+                        continue
+                    
+                    # Отправляем напоминание
+                    reminder_message = (
+                        f"⏰ <b>Напоминание о дне рождения!</b>\n\n"
+                        f"Вы просили напомнить о дне рождения <b>{birthday_user['full_name']}</b> 🎂\n\n"
+                        f"🎁 Не забудьте отправить подарок!\n"
+                        f"Адреса для отправки можно посмотреть через кнопку 'Ближайшие дни рождения'"
+                    )
+                    
+                    await self.bot.send_message(
+                        delay['user_id'],
+                        reminder_message
+                    )
+                    
+                    print(f"✅ Напоминание отправлено пользователю {delay['user_name']} "
+                          f"о {birthday_user['full_name']}")
+                    
+                    # Удаляем отправленное напоминание
+                    self.db.delete_delay(delay['id'])
+                    
+                except Exception as e:
+                    print(f"❌ Ошибка отправки напоминания {delay.get('id', 'unknown')}: {e}")
+                    
+                    # Если пользователь заблокировал бота или возникла ошибка,
+                    # все равно удаляем напоминание
+                    try:
+                        self.db.delete_delay(delay['id'])
+                    except:
+                        pass
+        
+        except Exception as e:
+            print(f"❌ Ошибка в check_and_send_reminders: {e}")
