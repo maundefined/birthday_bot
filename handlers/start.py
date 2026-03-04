@@ -44,7 +44,7 @@ async def cmd_help(message: Message):
         "2. За 10 дней до дня рождения бот запросит у тебя адреса ПВЗ\n"
         "3. После заполнения нажми кнопочку - бот уведомит других участников о твоем дне рождения\n"
         "4. В день получения подарков ты получишь штрих-коды от друзей\n\n"
-        "🔄 Ты можешь изменить свои данные в любое время!"
+        "🔄 Ты можешь изменить свои данные в любое время!\n\n"
         "Если остались вопросы или есть предложения, пиши @maundefined"
     )
     await message.answer(help_text, parse_mode="html")
@@ -117,3 +117,4 @@ async def process_participation(callback: CallbackQuery, state: FSMContext):
     await state.clear()
 
     await callback.answer()
+
