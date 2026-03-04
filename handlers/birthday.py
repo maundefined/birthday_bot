@@ -562,6 +562,19 @@ async def handle_notify_with_addresses(callback: CallbackQuery):
             await callback.answer("У тебя не указан день рождения!", show_alert=True)
             return
         
+        # --- НОВАЯ ПРОВЕРКА: сколько дней осталось до дня рождения ---
+        bd_date = datetime.strptime(user['birthday'], '%Y-%m-%d').date()
+        _, days_until = calculate_next_birthday(bd_date)
+        
+        if days_until > 10:
+            await callback.answer(
+                f"❌ Уведомление можно отправить только когда до дня рождения останется 10 дней или меньше.\n"
+                f"Сейчас осталось {days_until} дней.",
+                show_alert=True
+            )
+            return
+        # -------------------------------------------------------------
+        
         # Проверяем, есть ли адреса
         addresses = db.get_user_addresses(callback.from_user.id)
         has_addresses = any(address for address in addresses.values() if address)
@@ -673,3 +686,4 @@ async def force_notification(message: Message):
         print(f"❌ Ошибка принудительного уведомления: {e}")
 
         await message.answer("❌ Ошибка при отправке уведомлений")
+
