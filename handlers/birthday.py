@@ -432,6 +432,7 @@ async def handle_reminder(callback: CallbackQuery):
             pass
     
     if action == "never":
+        # Пользователь не хочет напоминаний
         await callback.message.edit_text("✅ Хорошо, напоминать не буду.")
         await callback.answer()
         return
@@ -443,43 +444,58 @@ async def handle_reminder(callback: CallbackQuery):
         if not birthday_user_id:
             message_text = callback.message.text or callback.message.caption or ""
             
-            # Извлекаем имя именинника из сообщения
-            birthday_user_name = None
-            if "ПРАЗДНУЕТ ДЕНЬ РОЖДЕНИЯ" in message_text:
-                match = re.search(r'(?:СКОРО\s+)?([А-ЯЁ\s]+?)\s+ПРАЗДНУЕТ', message_text)
-                if match:
-                    birthday_user_name = match.group(1).strip()
+            # Пытаемся извлечь ID именинника из сообщения
+            # Ищем паттерн "ID: <число>" в сообщении
+            id_match = re.search(r'ID:\s*(\d+)', message_text)
+            if id_match:
+                birthday_user_id = int(id_match.group(1))
             
-            if birthday_user_name:
-                all_users = db.get_all_users()
-                for user in all_users:
-                    if user['full_name'].upper() == birthday_user_name:
-                        birthday_user_id = user['user_id']
-                        break
+            # Если не нашли ID, пытаемся найти по имени
+            if not birthday_user_id:
+                # Извлекаем имя именинника из сообщения
+                birthday_user_name = None
+                if "ПРАЗДНУЕТ ДЕНЬ РОЖДЕНИЯ" in message_text:
+                    match = re.search(r'(?:СКОРО\s+)?([А-ЯЁ\s]+?)\s+ПРАЗДНУЕТ', message_text)
+                    if match:
+                        birthday_user_name = match.group(1).strip()
+                
+                if birthday_user_name:
+                    all_users = db.get_all_users()
+                    for user in all_users:
+                        if user['full_name'].upper() == birthday_user_name:
+                            birthday_user_id = user['user_id']
+                            break
         
         if birthday_user_id:
             birthday_user = db.get_user(birthday_user_id)
             if birthday_user:
                 year = datetime.now().year
+                
                 # Сохраняем отложенное напоминание
-                db.set_delay(callback.from_user.id, birthday_user_id, delay_days, year)
+                db.set_delay(
+                    user_id=callback.from_user.id,
+                    birthday_user_id=birthday_user_id,
+                    delay_days=delay_days,
+                    year=year
+                )
                 
                 # Рассчитываем дату напоминания
                 reminder_date = datetime.now() + timedelta(days=delay_days)
                 
                 await callback.message.edit_text(
-                    f"✅ Напомню тебе о дне рождения {birthday_user['full_name']} "
+                    f"✅ Отлично! Напомню тебе о дне рождения "
                     f"через {delay_days} {'день' if delay_days == 1 else 'дня' if delay_days < 5 else 'дней'} "
-                    f"({reminder_date.strftime('%d.%m.%Y')})!"
+                    f"({reminder_date.strftime('%d.%m.%Y')})!\n\n"
+                    f"Я пришлю сообщение в этот день с напоминанием 🎁"
                 )
             else:
-                await callback.message.edit_text(f"✅ Напомню через {delay_days} дней!")
+                await callback.message.edit_text(f"✅ Запомнил! Напомню через {delay_days} дней!")
         else:
             # Если не удалось найти именинника
-            await callback.message.edit_text(f"✅ Напомню через {delay_days} дней!")
+            await callback.message.edit_text(f"✅ Хорошо! Напомню через {delay_days} дней!")
             
     except ValueError:
-        await callback.message.edit_text("Ошибка обработки запроса")
+        await callback.message.edit_text("❌ Ошибка: неверный формат запроса")
     except Exception as e:
         print(f"❌ Ошибка обработки напоминания: {e}")
         await callback.message.edit_text("❌ Произошла ошибка при сохранении напоминания")
@@ -655,4 +671,5 @@ async def force_notification(message: Message):
         
     except Exception as e:
         print(f"❌ Ошибка принудительного уведомления: {e}")
+
         await message.answer("❌ Ошибка при отправке уведомлений")
